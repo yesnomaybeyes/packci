@@ -1,0 +1,85 @@
+---
+resource_types:
+    - name: http
+      type: docker-image
+      source:
+        repository: aequitas/http-resource
+    - name: file-url
+      type: docker-image
+      source:
+          repository: pivotalservices/concourse-curl-resource
+          tag: latest
+
+resources:
+- name: unzip-image-hub
+  type: docker-image
+  source:
+        username: xack
+        password: rustydog349
+        repository: xack/unzip
+- name: devbase
+  type: file-url
+  source:
+    # url: https://de1.androidfilehost.com/dl/r_URWv5J2zVMD4lrhrJn8Q/1559568415/1395089523397962869/N950FXXU6DSD5_DevBase_v6.0.zip
+    url: http://files/devbase6.zip
+    filename: devbase6.zip
+
+- name: src
+  type: git
+  source:
+    uri: https://github.com/yesnomaybeyes/devbasestuff.git
+    branch: master
+
+task-config: &task-config
+  platform: linux
+  image_resource:
+    type: docker-image
+    source:
+      repository: ubuntu
+      tag: latest
+
+jobs:
+  - name: tools image
+    plan:
+    - get: src
+    - put: unzip-image-hub
+      config:
+      params: {build: src/tools}
+  - name: unzip
+    plan:
+      - get: devbase
+      - get: src
+        passed:
+          - unzip image
+      - task: get and unzip
+        config:
+          image_resource:
+           type: docker-image
+           source:
+             repository: xack/unzip
+             tag: latest
+          platform: linux
+          inputs:
+          - name: devbase
+          outputs:
+          - name: devbaseunzip
+          run:
+            path: sh
+            args:
+              - -exc
+              - |
+                unzip -d devbaseunzip/ devbase/devbase6.zip
+
+  # - name: prep
+  #   plan:
+  #     - task: find
+  #       config:
+  #         << : *task-config
+  #         inputs:
+  #         - name: devbaseunzip
+  #         run:
+  #           path: sh
+  #           args:
+  #             - -exc
+  #             - |
+  #               find .
